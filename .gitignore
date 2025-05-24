@@ -1,0 +1,15 @@
+venv
+.env
+*.egg
+*.egg-info
+dist
+build
+.tox
+.nox
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.py[co]
+__pycache__
+
