@@ -1,27 +1,36 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from accelerate import dispatch_model, infer_auto_device_map, init_empty_weights, disk_offload
 import torch
 import os
 
-# Use local directories instead of restricted /mnt/disk1
 os.environ["HF_HOME"] = "./hf_cache"
-offload_dir = "./offload"
-os.makedirs(offload_dir, exist_ok=True)
 
 app = FastAPI()
 
 MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+offload_dir = "./offload"
+os.makedirs(offload_dir, exist_ok=True)
 
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 
-print("Loading model with automatic device and offload...")
+print("Loading model with disk offload...")
+# Load config only first
+from transformers import AutoConfig
+config = AutoConfig.from_pretrained(MODEL_NAME)
+
+with init_empty_weights():
+    model = AutoModelForCausalLM.from_config(config)
+
+device_map = infer_auto_device_map(model, max_memory={0: "10GiB"}, no_split_module_classes=["LlamaDecoderLayer"])
+
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    torch_dtype=torch.float16,
-    device_map="auto",
+    device_map=device_map,
     offload_folder=offload_dir,
+    torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
 )
 
@@ -52,4 +61,4 @@ def generate_text(request: PromptRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
