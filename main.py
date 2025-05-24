@@ -4,37 +4,52 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 import torch
 import os
+import shutil
 
-# Environment setup
-os.environ["HF_HOME"] = "hf_cache"  # Cache dir
-MODEL_NAME = "ALLaM-7B-Instruct-preview"
-offload_dir = "offload"
-os.makedirs(offload_dir, exist_ok=True)
+MODEL_ID = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+LOCAL_MODEL_DIR = "./local_model"
+OFFLOAD_DIR = "./offload"
+
+os.environ["HF_HOME"] = "hf_cache"
 
 app = FastAPI()
 
-print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
+# === Download model if not exists ===
+if not os.path.isdir(LOCAL_MODEL_DIR):
+    print("🔽 Downloading model to local folder...")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, use_fast=False)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID)
+    tokenizer.save_pretrained(LOCAL_MODEL_DIR)
+    model.save_pretrained(LOCAL_MODEL_DIR)
+    print("✅ Download complete.")
+else:
+    print("✅ Using cached local model.")
 
-print("Loading config...")
-config = AutoConfig.from_pretrained(MODEL_NAME)
+# === Load tokenizer ===
+print("🔄 Loading tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained(LOCAL_MODEL_DIR, use_fast=False)
 
-print("Initializing empty model...")
+# === Load config & model with disk offloading ===
+print("⚙️ Loading config...")
+config = AutoConfig.from_pretrained(LOCAL_MODEL_DIR)
+
+print("🧠 Initializing empty model...")
 with init_empty_weights():
     model = AutoModelForCausalLM.from_config(config)
 
-print("Dispatching model with disk offload...")
+print("💾 Offloading model to disk...")
+os.makedirs(OFFLOAD_DIR, exist_ok=True)
 model = load_checkpoint_and_dispatch(
     model,
-    MODEL_NAME,
+    LOCAL_MODEL_DIR,
     device_map="auto",
-    offload_folder=offload_dir,
+    offload_folder=OFFLOAD_DIR,
     dtype=torch.float16
 )
 
-print("Model loaded.")
+print("✅ Model loaded.")
 
-# Request body for /generate
+# === API schema ===
 class PromptRequest(BaseModel):
     prompt: str
     max_new_tokens: int = 200
