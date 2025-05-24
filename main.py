@@ -1,40 +1,55 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
+import os
+
+# Optional: Set HF cache dir if needed
+# os.environ["HF_HOME"] = "/mnt/disk1/hf_cache"
 
 app = FastAPI()
 
-# Replace this with your actual model path or model ID (local or from Hugging Face Hub)
-MODEL_PATH = "./your-model-directory"
+MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+offload_dir = "./offload"  # Local disk offload directory
+os.makedirs(offload_dir, exist_ok=True)
 
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 
-print("Loading model with disk offload on CPU...")
+print("Loading model on CPU with disk offload...")
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_PATH,
-    device_map={"": "cpu"},
-    offload_folder="offload",
-    offload_state_dict=True
+    MODEL_NAME,
+    torch_dtype=torch.float32,         # Use float32 for CPU
+    device_map={"": "cpu"},            # Force CPU
+    offload_folder=offload_dir,        # Disk offload folder
+    offload_state_dict=True,
+    low_cpu_mem_usage=True,
 )
+
 print("Model loaded.")
 
 class PromptRequest(BaseModel):
     prompt: str
-    max_new_tokens: int = 100
-    temperature: float = 0.7
+    max_new_tokens: int = 200
+
+@app.get("/")
+def root():
+    return {"message": "🚀 ALLaM-7B API is running on CPU"}
 
 @app.post("/generate")
-async def generate_text(req: PromptRequest):
-    inputs = tokenizer(req.prompt, return_tensors="pt")
-    outputs = model.generate(
+def generate_text(request: PromptRequest):
+    inputs = tokenizer(request.prompt, return_tensors="pt")
+    output = model.generate(
         **inputs,
-        max_new_tokens=req.max_new_tokens,
-        temperature=req.temperature
+        max_new_tokens=request.max_new_tokens,
+        do_sample=True,
+        top_p=0.95,
+        temperature=0.7,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id
     )
-    result = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return {"response": result}
+    response = tokenizer.decode(output[0], skip_special_tokens=True)
+    return {"response": response}
 
 if __name__ == "__main__":
     import uvicorn
