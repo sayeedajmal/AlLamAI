@@ -3,6 +3,11 @@ from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
+
+import os
+
+os.environ["TRANSFORMERS_CACHE"] = "/mnt/disk1/hf_cache"
+
 app = FastAPI()
 
 # Model setup
