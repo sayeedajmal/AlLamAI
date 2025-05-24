@@ -4,25 +4,23 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import os
 
-# Optional: Set HF cache dir if needed
-# os.environ["HF_HOME"] = "/mnt/disk1/hf_cache"
+os.environ["HF_HOME"] = "hf_cache"
 
 app = FastAPI()
 
 MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
-offload_dir = "./offload"  # Local disk offload directory
+offload_dir = "offload"
 os.makedirs(offload_dir, exist_ok=True)
 
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 
-print("Loading model on CPU with disk offload...")
+print("Loading model with automatic device and offload...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
-    torch_dtype=torch.float32,         # Use float32 for CPU
-    device_map={"": "cpu"},            # Force CPU
-    offload_folder=offload_dir,        # Disk offload folder
-    offload_state_dict=True,
+    torch_dtype=torch.float16,
+    device_map="auto",
+    offload_folder=offload_dir,
     low_cpu_mem_usage=True,
 )
 
@@ -34,11 +32,11 @@ class PromptRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "🚀 ALLaM-7B API is running on CPU"}
+    return {"message": "🚀 ALLaM-7B API is running"}
 
 @app.post("/generate")
 def generate_text(request: PromptRequest):
-    inputs = tokenizer(request.prompt, return_tensors="pt")
+    inputs = tokenizer(request.prompt, return_tensors="pt").to(model.device)
     output = model.generate(
         **inputs,
         max_new_tokens=request.max_new_tokens,
@@ -53,4 +51,4 @@ def generate_text(request: PromptRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
