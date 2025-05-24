@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 import torch
 import os
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
 os.environ["HF_HOME"] = "/mnt/disk1/hf_cache"
 
@@ -15,17 +15,18 @@ print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 
 print("Initializing model with offloading...")
-
 with init_empty_weights():
     config = AutoConfig.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_config(config)
+
+offload_dir = "/mnt/disk1/offload"
+os.makedirs(offload_dir, exist_ok=True)
 
 model = load_checkpoint_and_dispatch(
     model,
     MODEL_NAME,
     device_map="auto",
-    no_split_module_classes=["GPTJBlock"],  # you can adjust based on your model type
-    offload_folder="/mnt/disk1/offload",
+    offload_folder=offload_dir,
     dtype=torch.float16,
 )
 
