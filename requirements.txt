@@ -6,3 +6,4 @@ uvicorn
 tiktoken
 blobfile
 sentencepiece
+accelerate
