@@ -2,3 +2,4 @@ transformers
 accelerate
 torch
 streamlit
+uvicorn
