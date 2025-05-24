@@ -1,15 +1,17 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
 app = FastAPI()
 
-# Load the model and tokenizer once during startup
-model_path = "./ALLaM-7B-Instruct-preview"
-tokenizer = AutoTokenizer.from_pretrained(model_path)
+# Model setup
+MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+
+# Automatically download model/tokenizer from Hugging Face
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(
-    model_path,
+    MODEL_NAME,
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
     device_map="auto"
 )
@@ -21,10 +23,11 @@ class PromptRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "ALLaM-7B API is running 🚀"}
+    return {"message": "🚀 ALLaM-7B API is running"}
 
 @app.post("/generate")
 def generate_text(request: PromptRequest):
+    # Tokenize and generate
     inputs = tokenizer(request.prompt, return_tensors="pt").to(model.device)
     output = model.generate(
         **inputs,
@@ -38,6 +41,7 @@ def generate_text(request: PromptRequest):
     response = tokenizer.decode(output[0], skip_special_tokens=True)
     return {"response": response}
 
+# For local testing
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
