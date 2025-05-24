@@ -9,7 +9,7 @@ app = FastAPI()
 MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
 
 # Automatically download model/tokenizer from Hugging Face
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
