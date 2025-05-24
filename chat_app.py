@@ -9,11 +9,16 @@ st.markdown("<h1 style='text-align: center;'>🤖 ALLaM Chat</h1>", unsafe_allow
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# Update this if your API is hosted differently or on a remote server
 API_URL = "http://127.0.0.1:8000/generate"
 
 def generate_reply(prompt):
-    response = requests.post(API_URL, json={"prompt": prompt, "max_new_tokens": 200})
-    return response.json()["response"]
+    try:
+        response = requests.post(API_URL, json={"prompt": prompt, "max_new_tokens": 200})
+        response.raise_for_status()
+        return response.json().get("response", "No response received.")
+    except Exception as e:
+        return f"Error: {e}"
 
 # Chat box UI
 with st.form("chat_form", clear_on_submit=True):
@@ -26,7 +31,7 @@ with st.form("chat_form", clear_on_submit=True):
             reply = generate_reply(user_input)
         st.session_state.chat_history.append(("bot", reply))
 
-# Display chat history
+# Display chat history with simple styling
 for sender, msg in st.session_state.chat_history:
     align = "flex-end" if sender == "user" else "flex-start"
     bubble_color = "#DCF8C6" if sender == "user" else "#F1F0F0"
