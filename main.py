@@ -4,13 +4,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import os
 
-os.environ["HF_HOME"] = "/mnt/disk1/hf_cache"
+# Use local directories instead of restricted /mnt/disk1
+os.environ["HF_HOME"] = "./hf_cache"
+offload_dir = "./offload"
+os.makedirs(offload_dir, exist_ok=True)
 
 app = FastAPI()
 
 MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
-offload_dir = "/mnt/disk1/offload"
-os.makedirs(offload_dir, exist_ok=True)
 
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
