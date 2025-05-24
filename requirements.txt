@@ -3,3 +3,6 @@ accelerate
 torch
 streamlit
 uvicorn
+tiktoken
+blobfile
+sentencepiece
