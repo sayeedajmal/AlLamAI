@@ -7,7 +7,7 @@ import os
 
 # Environment setup
 os.environ["HF_HOME"] = "hf_cache"  # Cache dir
-MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+MODEL_NAME = "ALLaM-7B-Instruct-preview"
 offload_dir = "offload"
 os.makedirs(offload_dir, exist_ok=True)
 
