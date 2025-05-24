@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import os
 
@@ -10,24 +9,19 @@ os.environ["HF_HOME"] = "/mnt/disk1/hf_cache"
 app = FastAPI()
 
 MODEL_NAME = "ALLaM-AI/ALLaM-7B-Instruct-preview"
+offload_dir = "/mnt/disk1/offload"
+os.makedirs(offload_dir, exist_ok=True)
 
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
 
-print("Initializing model with offloading...")
-with init_empty_weights():
-    config = AutoConfig.from_pretrained(MODEL_NAME)
-    model = AutoModelForCausalLM.from_config(config)
-
-offload_dir = "/mnt/disk1/offload"
-os.makedirs(offload_dir, exist_ok=True)
-
-model = load_checkpoint_and_dispatch(
-    model,
+print("Loading model with automatic device and offload...")
+model = AutoModelForCausalLM.from_pretrained(
     MODEL_NAME,
+    torch_dtype=torch.float16,
     device_map="auto",
     offload_folder=offload_dir,
-    dtype=torch.float16,
+    low_cpu_mem_usage=True,
 )
 
 print("Model loaded.")
